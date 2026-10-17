@@ -1,4 +1,4 @@
-import React from 'react'
+import { useState } from 'react'
 
 interface Service {
   id: number
@@ -19,37 +19,43 @@ const availableServices: Service[] = [
 ]
 
 export default function ProjectBuilder() {
-  const selectedServices: ServiceItem[] = []
-  let selectedServiceId: number | string = ''
-  let quantity: number = 1
+  const [selectedServices, setSelectedServices] = useState<ServiceItem[]>([])
+  const [selectedServiceId, setSelectedServiceId] = useState<number | ''>('')
+  const [quantity, setQuantity] = useState('1')
 
-  let totalPrice = 0
+  const totalPrice = selectedServices.reduce(
+    (total, item) => total + item.service.price * item.quantity,
+    0,
+  )
 
-  for (const item of selectedServices) {
-    totalPrice += item.service.price * item.quantity
-  }
+  const numericQuantity = Number(quantity)
+
+  const isQuantityValid =
+    Number.isInteger(numericQuantity) && numericQuantity >= 1 && numericQuantity <= 10
 
   function addService() {
     const service = availableServices.find((s) => s.id === selectedServiceId)
 
-    if (!service) 
+    if (!service || !isQuantityValid)
 return
 
-    const existing = selectedServices.find((item) => item.service === service)
+    setSelectedServices((prev) => {
+      const existing = prev.find((item) => item.service.id === service.id)
 
-    if (existing) {
-      existing.quantity += quantity
-    } else {
-      selectedServices.push({ service, quantity })
-    }
+      return existing
+        ? prev.map((item) =>
+            item.service.id === service.id
+              ? { ...item, quantity: item.quantity + numericQuantity }
+              : item,
+          )
+        : [...prev, { service, quantity: numericQuantity }]
+    })
+    setSelectedServiceId('')
+    setQuantity('1')
   }
 
   function removeService(item: ServiceItem) {
-    const index = selectedServices.indexOf(item)
-
-    if (index > -1) {
-      selectedServices.splice(index, 1)
-    }
+    setSelectedServices((prev) => prev.filter((selectedItem) => selectedItem.service.id !== item.service.id))
   }
 
   return (
@@ -65,7 +71,7 @@ return
       >
         <select
           onChange={(e) => {
-            selectedServiceId = Number(e.target.value)
+            setSelectedServiceId(Number(e.target.value))
           }}
           value={selectedServiceId}
         >
@@ -83,17 +89,23 @@ return
           max={10}
           min={1}
           onChange={(e) => {
-            quantity = Number(e.target.value)
+            setQuantity(e.target.value)
           }}
           style={{ width: 80, padding: '8px 12px' }}
           type="number"
           value={quantity}
         />
 
-        <button disabled={!selectedServiceId} onClick={addService}>
+        <button disabled={selectedServiceId === '' || !isQuantityValid} onClick={addService}>
           Добавить
         </button>
       </div>
+
+      {!isQuantityValid && (
+        <p style={{ color: 'red', marginBottom: 24 }}>
+          Введите целое количество от 1 до 10.
+        </p>
+      )}
 
       {selectedServices.length > 0 ? (
         <table className="services-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
